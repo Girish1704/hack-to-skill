@@ -1,5 +1,7 @@
-# Challenge 1: Build a Foundational IT Support Copilot Agent using Microsoft Copilot Studio
-  
+## Stage 1: Foundation
+
+# Challenge: Build a Foundational IT Support Copilot Agent using Microsoft Copilot Studio
+
 ## Problem Statement
 
 Enterprises face high volumes of repetitive IT support requests such as password resets, connectivity issues, or application access. Traditional manual triage results in longer response times and reduced productivity. This challenge focuses on building the foundation of an AI-powered IT Support Assistant capable of understanding user queries and responding with helpful information drawn from enterprise knowledge bases.

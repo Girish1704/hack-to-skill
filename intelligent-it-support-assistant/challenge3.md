@@ -1,3 +1,5 @@
+## Stage 3: Intelligence
+
 # Challenge 3: Add Intelligence to the IT Support Assistant using Azure AI Foundry and Azure AI Search
   
 ## Problem Statement
