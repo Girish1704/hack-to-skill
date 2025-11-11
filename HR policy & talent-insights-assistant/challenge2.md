@@ -1,84 +1,116 @@
-# Challenge: Integrate Power Automate for Feedback, Clarifications, and Compliance Reminders
+# Challenge 2: Integrate Power Automate Tools within Copilot Studio for HR Feedback and Compliance
   
 ## Problem Statement
 
-Policy answers alone aren’t enough—HR also needs structured feedback, clarification requests, and automated reminders for compliance or training renewals. In this stage, you’ll integrate **Power Automate** with your Copilot to capture employee inputs and trigger proactive workflows.
+Policy answers alone aren't enough—HR also needs structured feedback, clarification requests, and automated reminders for compliance or training renewals. In this challenge, you'll integrate **Power Automate** with your Copilot to capture employee inputs and trigger proactive workflows directly within the Copilot Studio portal using Freshdesk for tracking and Teams for notifications.
 
 ## Goals
 
-- Add Power Automate **Agent Flows** to capture policy feedback/clarification requests.
-- Store entries in **Dataverse** tables.
-- Send **Teams** notifications and scheduled compliance reminders.
+- Automate HR feedback collection and compliance tracking through Copilot Studio's integrated Power Automate tools.
+- Enable Microsoft Teams based notifications for HR staff.
+- Store and manage all feedback data within Freshdesk in a structured format.
 
-## Datasets / Prerequisites
+## Datasets  
 
-- No uploads from `C:\datasets`.  
-- You’ll create lightweight **Dataverse** tables to store records.  
-- (Optional) You can reference sample questions from `C:\datasets\hr_feedback_prompts.txt` for test messages (copy-paste only).
+- Use the pre-provided dataset in `C:\datasets\hr_feedback_template.csv`.
+- This dataset contains sample feedback templates and metadata to guide the feedback structure.
 
-## Challenge Objectives
+## Challenge Objectives  
 
-1. **Dataverse Tables**
-   - Create a table **PolicyFeedback** with columns:
-     - `EmployeeEmail` (Text), `Topic` (Text), `Message` (Multiline Text),
-     - `SentimentHint` (Choice: Positive/Neutral/Negative),
-     - `CreatedOn` (Date/Time).
-   - Create a table **ComplianceTasks** with columns:
-     - `EmployeeEmail` (Text), `PolicyName` (Text),
-     - `DueOn` (Date), `Status` (Choice: Pending/Done).
+1. **Set Up Freshdesk Free Trial Account**
+   - Navigate to [Freshdesk Free Trial](https://freshdesk.com/signup) and create a free trial account.
+   - Complete the setup wizard and note down your **Freshdesk domain** (e.g., `yourcompany.freshdesk.com`).
+   - Navigate to **Profile Settings → API Key** and copy your API key for later use.
+   - Create a custom ticket category for **HR Feedback** in Freshdesk settings.
 
-2. **Power Automate: Feedback Flow**
-   - Create a **Cloud flow** named `SubmitPolicyFeedback`.
-   - Trigger: **Power Automate → Copilot (Agent Flow)**.
-   - Actions:
-     - Add a row in **PolicyFeedback** with Copilot inputs.
-     - Post a **Teams** message to the HR channel with an Adaptive Card summary and deep link to the SharePoint policy page.
+2. **Open Copilot Studio and Access Power Automate Tools**
+   - Launch **Microsoft Copilot Studio** from your Microsoft 365 portal.
+   - Open the **HRInsights-Foundation** agent you created in the previous challenge.
+   - From the left navigation panel, go to **Tools → Power Automate** to view available connectors and builder options.
 
-3. **Power Automate: Clarification Request Flow**
-   - Flow name: `RequestPolicyClarification`.
-   - Trigger: **Agent Flow**.
-   - Actions:
-     - Add a row in **PolicyFeedback** (Topic = Clarification).
-     - Send an **email** to the HR mailbox with the employee’s question and policy link.
-     - Reply token back to Copilot for “ticket created” confirmation.
+3. **Create a Power Automate Flow for Feedback Submission**
+   - In Copilot Studio, navigate to **Tools → Power Automate → Create Flow**.
+   - Name the flow **SubmitHRFeedback**.
+   - Add the following steps:
+     1. **Trigger:** Use **When a Copilot topic runs this flow**.
+     2. **Action 1:** Add an **HTTP** action to create a Freshdesk ticket for feedback.
+        - Method: **POST**
+        - URI: `https://yourcompany.freshdesk.com/api/v2/tickets`
+        - Headers:
+          - `Content-Type`: `application/json`
+          - `Authorization`: `Basic <base64_encoded_api_key>`
+        - Body (JSON):
+          ```json
+          {
+            "subject": "HR Feedback: @{triggerBody()?['policyTopic']}",
+            "description": "@{triggerBody()?['feedbackText']}",
+            "email": "@{triggerBody()?['employeeEmail']}",
+            "priority": 2,
+            "status": 2,
+            "type": "Question",
+            "tags": ["hr-feedback"]
+          }
+          ```
+     3. **Action 2:** Parse the response JSON to extract the **Ticket ID**.
+     4. **Action 3:** Add a **Teams → Post message in a channel** action.
+        - Channel: **HR Feedback** (create if needed).
+        - Message: Include Feedback Topic, Employee Email, and Ticket ID.
+   - Save and test the flow to ensure it successfully creates Freshdesk tickets and sends Teams messages.
 
-4. **Power Automate: Compliance Reminder Flow**
-   - Flow name: `ComplianceReminders`.
-   - Trigger: **Recurrence** (daily).
-   - Actions:
-     - List rows from **ComplianceTasks** where `Status = Pending` and `DueOn <= utcNow() + 7d`.
-     - Send **Teams** proactive message to each employee: reminder with “Acknowledge” button.
-     - If user clicks “Acknowledge”, update `Status = Done`.
+4. **Create a Power Automate Flow for Policy Clarification Requests**
+   - In Copilot Studio, create a second flow named **RequestPolicyClarification**.
+   - Add the following steps:
+     1. **Trigger:** Use **When a Copilot topic runs this flow**.
+     2. **Action 1:** Create a Freshdesk ticket with type "Problem" and tag "clarification-needed".
+     3. **Action 2:** Send an email to the HR mailbox with the employee's question and policy reference.
+     4. **Action 3:** Return ticket confirmation to Copilot.
 
-5. **Wire Up in Copilot Studio**
-   - In **Actions**, **Add existing flow** for each of the three flows.
-   - Create topics:
-     - **Give-Feedback** (inputs: email, topic, free text).
-     - **Ask-Clarification** (inputs: email, policy URL or keyword).
-     - **Set-Compliance-Task** (inputs: policy name, due date, email).
-   - For each topic, call the respective Agent Flow and return a friendly confirmation message.
+5. **Create a Power Automate Flow for Compliance Reminders**
+   - Create a third flow named **ComplianceReminders**.
+   - Configure as a **Scheduled** flow (daily at 9 AM).
+   - Add logic to:
+     - Query a list of compliance tasks (can be maintained in a SharePoint list or use sample data).
+     - Send **Teams** messages to employees with upcoming compliance deadlines (within 7 days).
+     - Include "Acknowledge" adaptive card buttons for user confirmation.
 
-6. **Test End-to-End**
-   - Ask Copilot:
+6. **Integrate the Flows into Your Copilot Agent**
+   - In **Copilot Studio → Topics**, create or open a topic named **Feedback-and-Compliance**.
+   - Add **Trigger phrases** like:
+     - `I want to give feedback on HR policies`
+     - `Request clarification about benefits`
+     - `Need help understanding leave policy`
+   - Add question nodes to collect:
+     - Employee email
+     - Policy topic
+     - Feedback or question text
+   - Add a **Power Automate Action Node** to call the appropriate flow based on user intent.
+   - Map conversation variables to flow parameters.
+   - Display the returned Ticket ID to the user in a confirmation message.
+
+7. **Test the Copilot Agent**
+   - Use the **Test your copilot** panel to simulate conversations such as:
      - `I want to give feedback on the remote work policy.`
      - `Raise a clarification on sick leave eligibility.`
-     - `Create a compliance task for Security Awareness by 30 Nov for alex@contoso.com.`
+   - Verify that the flow executes, a Freshdesk ticket is created, and a Teams notification is received.
+   - Login to your Freshdesk portal and confirm the ticket appears with correct details.
 
-7. **Publish**
-   - Publish and confirm Teams messages, emails, and Dataverse rows are created.
+8. **Publish and Validate**
+   - Publish your updated agent via the **Demo Web App** channel.
+   - Confirm feedback submission and Teams notifications work seamlessly.
 
-## Success Criteria
+## Success Criteria  
 
-- Copilot successfully triggers **all three flows**.
-- Dataverse entries appear as expected.
-- Teams notifications and compliance acknowledgements work.
+- The Copilot agent successfully triggers feedback collection flows within the Copilot Studio portal.
+- Tickets appear correctly in Freshdesk with assigned IDs and proper categorization.
+- Teams notifications are sent automatically when feedback is submitted.
+- Users receive confirmation messages with Ticket ID in the chat.
 
 ## Additional Resources
 
-- Copilot Studio + Power Automate Integration  
-- Dataverse Tables Overview  
-- Teams Adaptive Cards overview
+- [Build flows directly in Copilot Studio](https://learn.microsoft.com/en-us/microsoft-copilot-studio/power-automate-integration)
+- [Freshdesk API Documentation](https://developers.freshdesk.com/api/)
+- [Send messages to Teams channels using Power Automate](https://learn.microsoft.com/en-us/connectors/teams/)
 
-## Conclusion
+## Conclusion  
 
-Your HR Copilot now captures structured **feedback**, **clarification requests**, and automates **compliance reminders**, closing the loop between knowledge discovery and HR operations.
+You have enhanced your HR Copilot's functionality by integrating Power Automate connectors directly within Copilot Studio to automate feedback collection and compliance reminders. Your Copilot is now capable of handling real-world HR workflow automation paving the way for adding AI-driven sentiment analysis and talent insights in the next stage.
